@@ -80,8 +80,10 @@ def output_entries(entries, outfile):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('outfile', nargs='?', type=argparse.FileType('w'),
-                        default=sys.stdout)
+    parser.add_argument('-o', '--outfile', nargs='?',
+                        type=argparse.FileType('w'), default=sys.stdout)
+    parser.add_argument('-d', '--debug', dest='loglevel', action='store_const',
+                        const=logging.DEBUG, default=logging.WARN)
     args = parser.parse_args()
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=args.loglevel)
     get_house_prices(args)
