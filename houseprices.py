@@ -11,6 +11,7 @@ import urllib.parse
 import sys
 import requests
 from bs4 import BeautifulSoup
+from dateutil.parser import parse as dateparse
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ def get_house_prices(args):
         next_page_entries = scrape_entries(soup)
         entries = itertools.chain(entries, next_page_entries)
     entries = filter_entries(entries)
+    entries = trim_addresses(entries)
     entries = format_entries(entries)
     output_entries(entries, args.outfile)
 
@@ -43,7 +45,7 @@ def get_pages(soup):
 def scrape_entries(soup):
     for row in soup.select('.searchresults tbody tr'):
         date_col, address_col, price_col = row.find_all('td')
-        date = date_col.find('strong').get_text().strip()
+        date = dateparse(date_col.find('strong').get_text().strip())
         price = price_col.get_text().strip()
         address = address_col.find('h2').get_text().strip()
         yield Entry(date, address, price)
@@ -57,18 +59,27 @@ def filter_entries(entries):
 
 def trim_addresses(entries):
     for entry in entries:
-        address = entry.address.split(',', 1)[0]
+        apartment, number = entry.address.split(',', 1)[0].split()
+        address = "{} {:>2}".format(apartment, number)
         yield Entry(entry.date, address, entry.price)
 
 
 def format_entries(entries):
-    keyfunc = lambda e: (e.address, e.date)
-    entries = sorted(trim_addresses(entries), key=keyfunc)
-    grouped = itertools.groupby(entries, operator.attrgetter('address'))
-    for address, group_entries in grouped:
-        row = [address]
-        for entry in group_entries:
-            row.extend([entry.date, entry.price])
+    addresses = set()
+    house_prices = collections.defaultdict(dict)
+    for entry in entries:
+        addresses.add(entry.address)
+        house_prices[entry.date][entry.address] = entry.price
+    addresses = sorted(addresses)
+    heading = ['Date'] + addresses
+    yield heading
+    for date in sorted(house_prices):
+        row = [date.strftime("%Y-%m-%d")]
+        for address in addresses:
+            if address in house_prices[date]:
+                row.append(house_prices[date][address])
+            else:
+                row.append(None)
         yield row
 
 
