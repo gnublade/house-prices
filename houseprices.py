@@ -35,7 +35,8 @@ def get_house_prices(args):
         soup = BeautifulSoup(response.content)
         next_page_entries = scrape_entries(soup)
         entries = itertools.chain(entries, next_page_entries)
-    entries = filter_entries(entries)
+    if args.filter:
+        entries = filter_entries(entries, args.filter)
     entries = trim_addresses(entries)
     entries = format_entries(entries)
     output_entries(entries, args.outfile)
@@ -55,16 +56,15 @@ def scrape_entries(soup):
         yield Entry(date, address, price)
 
 
-def filter_entries(entries):
+def filter_entries(entries, pattern):
     for entry in entries:
-        if 'Apartment' in entry.address:
+        if pattern in entry.address:
             yield entry
 
 
 def trim_addresses(entries):
     for entry in entries:
-        apartment, number = entry.address.split(',', 1)[0].split()
-        address = "{} {:>2}".format(apartment, number)
+        address = entry.address.split(',', 1)[0]
         yield Entry(entry.date, address, entry.price)
 
 
@@ -99,6 +99,7 @@ if __name__ == '__main__':
                         type=argparse.FileType('w'), default=sys.stdout)
     parser.add_argument('-d', '--debug', dest='loglevel', action='store_const',
                         const=logging.DEBUG, default=logging.WARN)
+    parser.add_argument('-f', '--filter')
     parser.add_argument('search', nargs='+')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
