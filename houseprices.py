@@ -15,18 +15,22 @@ from dateutil.parser import parse as dateparse
 
 logger = logging.getLogger(__name__)
 
-URL = "http://www.primelocation.com/house-prices/london/tollington-road/?q=Tollington%20Road%2C%20London%20N7&search_source=house-prices"  # NOQA
-
+SEARCH_URL = "http://www.primelocation.com/search/"
 
 Entry = collections.namedtuple("Entry", ['date', 'address', 'price'])
 
 
 def get_house_prices(args):
-    response = requests.get(URL)
+    response = requests.post(SEARCH_URL, data={
+        'q': "+".join(args.search),
+        'search_source': 'house-prices',
+        'section': 'house-prices',
+        'view_type': 'list'
+    })
     soup = BeautifulSoup(response.content)
     entries = scrape_entries(soup)
     for next_page_url in get_pages(soup):
-        url = urllib.parse.urljoin(URL, next_page_url)
+        url = urllib.parse.urljoin(SEARCH_URL, next_page_url)
         response = requests.get(url)
         soup = BeautifulSoup(response.content)
         next_page_entries = scrape_entries(soup)
@@ -95,6 +99,7 @@ if __name__ == '__main__':
                         type=argparse.FileType('w'), default=sys.stdout)
     parser.add_argument('-d', '--debug', dest='loglevel', action='store_const',
                         const=logging.DEBUG, default=logging.WARN)
+    parser.add_argument('search', nargs='+')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
     get_house_prices(args)
