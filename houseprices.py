@@ -1,21 +1,26 @@
 #!/usr/bin/env python
 
-from bs4 import BeautifulSoup
+import argparse
+import csv
+
+import sys
 import requests
+from bs4 import BeautifulSoup
 
-URL = "http://www.primelocation.com/house-prices/london/tollington-road/?q=Tollington%20Road%2C%20London%20N7&search_source=house-prices"
+URL = "http://www.primelocation.com/house-prices/london/tollington-road/?q=Tollington%20Road%2C%20London%20N7&search_source=house-prices"  # NOQA
 
-def get_house_prices():
+
+def get_house_prices(args):
     response = requests.get(URL)
     soup = BeautifulSoup(response.content)
     entries = scrape_entries(soup)
     entries = filter_entries(entries)
-    output_entries(entries)
+    output_entries(entries, args.outfile)
 
     for next_page_url in get_pages(soup):
         entries = scrape_entries(soup)
         entries = filter_entries(entries)
-        output_entries(entries)
+        output_entries(entries, args.outfile)
 
 
 def get_pages(soup):
@@ -38,10 +43,15 @@ def filter_entries(entries):
             yield (date, address, price)
 
 
-def output_entries(entries):
+def output_entries(entries, outfile):
+    writer = csv.writer(outfile)
     for date, address, price in entries:
-        print ", ".join([date, address, price])
+        writer.writerow([date, address, price])
 
 
 if __name__ == '__main__':
-    get_house_prices()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('outfile', nargs='?', type=argparse.FileType('w'),
+                        default=sys.stdout)
+    args = parser.parse_args()
+    get_house_prices(args)
